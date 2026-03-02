@@ -80,36 +80,63 @@ box-shadow:0 2px 8px rgba(0,0,0,0.2);
 }
 
 
+/* MAIN CHART CONTAINER */
 .charts
 {
-display: grid;
+display: flex;
 
-grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+flex-direction: row;
+
+justify-content: space-between;
+
+align-items: stretch;
 
 gap: 20px;
 
 padding: 20px;
+
+width: 100%;
+
+box-sizing: border-box;
 }
 
 
+/* EACH GRAPH BOX */
 .chart-box
 {
 background: #ffffff;
-padding: 20px;
+
+padding: 15px;
+
 border-radius: 12px;
 
-width: 100%;
-max-width: 900px;   /* makes graph wider */
+flex: 1;                /* all charts equal width */
 
-margin: 20px auto;
+min-width: 0;           /* prevents overflow */
 
 box-shadow: 0 4px 10px rgba(0,0,0,0.1);
 }
 
+
+/* GRAPH SIZE */
 .chart-box canvas
 {
 width: 100% !important;
-height: 450px !important;   /* increase graph height */
+
+height: 280px !important;
+}
+
+/* MAKE INNER CHART GROUPS HORIZONTAL */
+#esp32Charts,
+#esp32c3Charts
+{
+display: flex;
+
+flex-direction: row;
+
+gap: 20px;
+
+width: 100%;
 }
 
 .header
@@ -256,4 +283,20 @@ background:white;
 padding:20px;
 border-radius:10px;
 width:300px;
+}
+
+.device-box
+{
+width:180px;
+display:flex;
+align-items:center;
+justify-content:center;
+}
+
+
+.device-box img
+{
+width:140px;
+height:auto;
+object-fit:contain;
 }

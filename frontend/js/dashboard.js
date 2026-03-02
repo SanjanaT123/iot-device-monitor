@@ -1,66 +1,102 @@
-// ===============================
-// READ DEVICE INFO FROM URL
-// ===============================
+// ==========================================================
+// IoT Device Health Monitoring Dashboard
+// dashboard.js
+//
+// PURPOSE:
+// Connect frontend dashboard to Spring Boot backend,
+// fetch device logs, display parameters, and draw charts.
+//
+// BACKEND (Render):
+// https://iot-device-monitor.onrender.com
+//
+// This file is FUTURE-PROOF:
+// Adding new devices requires ONLY backend data,
+// frontend logic will continue working.
+// ==========================================================
 
+
+
+// ==========================================================
+// SECTION 1 — READ DEVICE INFO FROM URL
+// Example URL:
+// dashboard.html?deviceId=ESP32C3_001&image=esp32c3.png
+// ==========================================================
+
+// Read query parameters
 const params = new URLSearchParams(window.location.search);
 
+// Device unique ID (used for API call)
 const deviceId = params.get("deviceId");
 
+// Device image filename
 const imageName = params.get("image");
 
 
-// detect device type
+// Detect device type automatically based on ID naming
+// This allows automatic support for future devices
 let deviceType = "UNKNOWN";
 
-if (deviceId && deviceId.toUpperCase().includes("ESP32C3"))
-deviceType = "ESP32C3";
+const id = deviceId ? deviceId.toUpperCase() : "";
 
-else if (deviceId && deviceId.toUpperCase().includes("ESP32"))
-deviceType = "ESP32";
+// Devices that use Voltage, dvAvg, dvNorm charts
+if (
+    id.includes("ESP32C3") ||
+    id.includes("NANOBEL") ||
+    id.includes("PICO")
+)
+    deviceType = "ESP32C3";
+
+// Devices that use battery, cpu, rssi charts
+else if (id.includes("ESP32"))
+    deviceType = "ESP32";
 
 
-// set device image
+// Set device image dynamically
 if (imageName)
 {
-document.getElementById("deviceImage").src =
-"images/" + imageName;
+    document.getElementById("deviceImage").src =
+        "images/" + imageName;
 }
 
 
-// set dashboard title
+// Set dashboard title dynamically
 const titleEl =
-document.getElementById("deviceTitle");
+    document.getElementById("deviceTitle");
 
 if(titleEl)
-titleEl.innerText =
-deviceType + " Dashboard";
+    titleEl.innerText =
+        deviceId + " Health Dashboard";
 
 
-// ===============================
-// GLOBAL VARIABLES
-// ===============================
 
+// ==========================================================
+// SECTION 2 — GLOBAL VARIABLES
+// These store runtime dashboard state
+// ==========================================================
+
+// Complete dataset fetched from backend
 let data = [];
 
+// Current row index being displayed
 let index = 0;
 
+// Dashboard refresh interval (milliseconds)
 let intervalTime = 2000;
 
+// Timer reference
 let timer;
 
 
-// ESP32 charts
+// Chart objects (created once, updated later)
 let batteryChart;
 let cpuChart;
 
-
-// ESP32-C3 charts
 let voltageChart;
 let dvAvgChart;
 let dvNormChart;
 
 
-// data arrays
+// Chart data arrays (X axis = time, Y axis = values)
 let batteryLabels = [];
 let batteryValues = [];
 
@@ -77,482 +113,484 @@ let dvNormLabels = [];
 let dvNormValues = [];
 
 
-// ===============================
-// HIDE UNUSED SECTIONS
-// ===============================
+
+// ==========================================================
+// SECTION 3 — INITIALIZE UI
+// Hides unused sections depending on device type
+// This keeps UI clean and professional
+// ==========================================================
 
 function initUI()
 {
+    if(deviceType === "ESP32")
+    {
+        hide("voltageSection");
+        hide("dvAvgSection");
+        hide("dvNormSection");
 
-if(deviceType === "ESP32")
-{
+        hide("esp32c3Charts");
+    }
 
-hide("voltageSection");
-hide("dvAvgSection");
-hide("dvNormSection");
+    else if(deviceType === "ESP32C3")
+    {
+        hide("batterySection");
+        hide("rssiSection");
+        hide("bleSection");
+        hide("cpuSection");
 
-hide("esp32c3Charts");
+        hide("esp32Charts");
+    }
 
-}
+    else
+    {
+        // Unknown device
+        hide("batterySection");
+        hide("rssiSection");
+        hide("bleSection");
+        hide("cpuSection");
 
-else if(deviceType === "ESP32C3")
-{
+        hide("voltageSection");
+        hide("dvAvgSection");
+        hide("dvNormSection");
 
-hide("batterySection");
-hide("rssiSection");
-hide("bleSection");
-hide("cpuSection");
+        hide("esp32Charts");
+        hide("esp32c3Charts");
 
-hide("esp32Charts");
-
-}
-
-else
-{
-
-hide("batterySection");
-hide("rssiSection");
-hide("bleSection");
-hide("cpuSection");
-
-hide("voltageSection");
-hide("dvAvgSection");
-hide("dvNormSection");
-
-hide("esp32Charts");
-hide("esp32c3Charts");
-
-setStatus("No data available");
-
-}
-
+        setStatus("Unsupported device");
+    }
 }
 
 
+// Utility function to hide UI elements
 function hide(id)
 {
+    const el = document.getElementById(id);
 
-const el = document.getElementById(id);
+    if(el)
+        el.style.display = "none";
+}
 
-if(el)
-el.style.display = "none";
+// ==========================================================
+// FUNCTION: Convert timestamp to readable time (HH:MM:SS)
+// Works for milliseconds OR ISO timestamp from backend
+// ==========================================================
+function formatTime(timestamp)
+{
+    if (!timestamp) return "";
 
+    const date = new Date(timestamp);
+
+    return date.toLocaleTimeString("en-IN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false
+    });
 }
 
 
-// ===============================
-// STATUS TEXT
-// ===============================
+// ==========================================================
+// SECTION 4 — STATUS DISPLAY
+// Shows device online/offline/error state
+// ==========================================================
 
 function setStatus(text)
 {
+    const status =
+        document.getElementById("statusText");
 
-const status =
-document.getElementById("statusText");
-
-if(status)
-status.innerText = text;
-
+    if(status)
+        status.innerText = text;
 }
 
 
-// ===============================
-// LOAD DATA FROM BACKEND
-// ===============================
+
+// ==========================================================
+// SECTION 5 — LOAD DATA FROM BACKEND API
+//
+// Calls your Spring Boot backend on Render:
+//
+// GET:
+// /api/device-logs/device/{deviceId}
+//
+// Returns JSON array of device logs
+// ==========================================================
 
 async function loadDataset()
 {
+    try
+    {
+        const res =
+            await fetch(
+                `https://iot-device-monitor.onrender.com/api/device-logs/device/${deviceId}`
+            );
 
-try
-{
-
-const res =
-await fetch(
-`http://localhost:8080/api/device-logs/device/${deviceId}`
-);
-
-data = await res.json();
+        data = await res.json();
 
 
-if(!data || data.length === 0)
-{
+        // If no data found
+        if(!data || data.length === 0)
+        {
+            setStatus("No data available");
+            return;
+        }
 
-setStatus("No data available");
+        setStatus("Online");
 
-return;
-
-}
-
-setStatus("Online");
-
-startSimulation();
-
-}
-catch(e)
-{
-
-setStatus("Connection error");
-
-}
-
+        // Start dashboard update loop
+        startSimulation();
+    }
+    catch(e)
+    {
+        console.error(e);
+        setStatus("Backend connection error");
+    }
 }
 
 
-// ===============================
-// SIMULATION LOOP
-// ===============================
+
+// ==========================================================
+// SECTION 6 — START AUTO UPDATE LOOP
+//
+// Runs updateDashboard() repeatedly
+// based on configured interval
+// ==========================================================
 
 function startSimulation()
 {
+    clearInterval(timer);
 
-clearInterval(timer);
-
-timer =
-setInterval(
-updateDashboard,
-intervalTime
-);
-
+    timer =
+        setInterval(
+            updateDashboard,
+            intervalTime
+        );
 }
 
 
-// ===============================
-// UPDATE INTERVAL
-// ===============================
 
-function applyInterval()
-{
-
-intervalTime =
-parseInt(
-document.getElementById("interval").value
-);
-
-startSimulation();
-
-}
-
-
-// ===============================
-// UPDATE DASHBOARD VALUES
-// ===============================
+// ==========================================================
+// SECTION 7 — UPDATE DASHBOARD WITH NEW DATA POINT
+//
+// Each interval:
+// • reads next row from dataset
+// • updates UI text values
+// • updates charts
+// ==========================================================
 
 function updateDashboard()
 {
+    if(index >= data.length)
+        return;
 
-if(index >= data.length)
-return;
+    const row = data[index];
 
-const row = data[index];
+    // Use timestamp if available, else index
+	const rawTime =
+	    row.timestamp ??
+	    row.timeMs ??
+	    Date.now();
 
-const time = row.timeMs ?? index;
-
-
-// ESP32
-if(deviceType === "ESP32")
-{
-
-setText("batteryText",
-row.batteryVoltage + " V");
-
-setText("rssi",
-row.rssiDbm);
-
-setText("ble",
-row.bleConnAttempts);
-
-setText("cpu",
-row.cpuCycles);
+	// Convert to readable clock time
+	const time = formatTime(rawTime);
 
 
-// battery bar
-if(row.batteryVoltage)
-{
+    // ======================================================
+    // ESP32 DEVICE DATA
+    // ======================================================
+    if(deviceType === "ESP32")
+    {
+        setText("batteryText",
+            row.batteryVoltage + " V");
 
-const percent =
-((row.batteryVoltage - 3.3) / 0.9) * 100;
+        setText("rssi",
+            row.rssiDbm);
 
-document.getElementById("batteryBar")
-.style.width =
-percent + "%";
+        setText("ble",
+            row.bleConnAttempts);
 
+        setText("cpu",
+            row.cpuCycles);
+
+
+        // Update battery progress bar
+        if(row.batteryVoltage)
+        {
+            const percent =
+                ((row.batteryVoltage - 3.3) / 0.9) * 100;
+
+            document.getElementById("batteryBar")
+                .style.width =
+                percent + "%";
+        }
+
+
+        // Add chart data
+        batteryLabels.push(time);
+        batteryValues.push(row.batteryVoltage);
+
+        cpuLabels.push(time);
+        cpuValues.push(row.cpuCycles);
+    }
+
+
+
+    // ======================================================
+    // ESP32-C3 DEVICE DATA
+    // ======================================================
+    if(deviceType === "ESP32C3")
+    {
+        setText("voltageText",
+            row.voltageV + " V");
+
+        setText("dvAvgText",
+            row.dvAvg);
+
+        setText("dvNormText",
+            row.dvNorm);
+
+
+        voltageLabels.push(time);
+        voltageValues.push(row.voltageV);
+
+        dvAvgLabels.push(time);
+        dvAvgValues.push(row.dvAvg);
+
+        dvNormLabels.push(time);
+        dvNormValues.push(row.dvNorm);
+    }
+
+
+    // Update graphs
+    updateCharts();
+
+    // Move to next dataset row
+    index++;
 }
 
 
-// charts data
-batteryLabels.push(time);
-batteryValues.push(row.batteryVoltage);
 
-cpuLabels.push(time);
-cpuValues.push(row.cpuCycles);
-
-}
-
-
-// ESP32-C3
-if(deviceType === "ESP32C3")
-{
-
-setText("voltageText",
-row.voltageV + " V");
-
-setText("dvAvgText",
-row.dvAvg);
-
-setText("dvNormText",
-row.dvNorm);
-
-
-voltageLabels.push(time);
-voltageValues.push(row.voltageV);
-
-dvAvgLabels.push(time);
-dvAvgValues.push(row.dvAvg);
-
-dvNormLabels.push(time);
-dvNormValues.push(row.dvNorm);
-
-}
-
-
-updateCharts();
-
-index++;
-
-}
-
-
-// ===============================
-// UPDATE CHARTS
-// ===============================
+// ==========================================================
+// SECTION 8 — CREATE / UPDATE CHARTS
+//
+// Charts created once, then updated for performance
+// ==========================================================
 
 function updateCharts()
 {
 
-
-// ESP32 charts
-if(deviceType === "ESP32")
-{
-
-if(!batteryChart)
-{
-
-batteryChart =
-new Chart(
-document.getElementById("batteryChart"),
-{
-type:"line",
-data:{
-labels:batteryLabels,
-datasets:[
-{
-label:"Battery Voltage",
-data:batteryValues,
-borderColor:"green",
-fill:false
-}
-]
-}
-});
-
-
-cpuChart =
-new Chart(
-document.getElementById("cpuChart"),
-{
-type:"line",
-data:{
-labels:cpuLabels,
-datasets:[
-{
-label:"CPU Cycles",
-data:cpuValues,
-borderColor:"blue",
-fill:false
-}
-]
-}
-});
-
-}
-else
-{
-
-batteryChart.update();
-cpuChart.update();
-
-}
-
-}
+    // ======================
+    // ESP32 charts
+    // ======================
+    if(deviceType === "ESP32")
+    {
+        if(!batteryChart)
+        {
+            batteryChart =
+                new Chart(
+                    document.getElementById("batteryChart"),
+                    {
+                        type:"line",
+                        data:{
+                            labels:batteryLabels,
+                            datasets:[
+                                {
+                                    label:"Battery Voltage",
+                                    data:batteryValues,
+                                    borderColor:"green",
+                                    fill:false
+                                }
+                            ]
+                        }
+                    });
 
 
-// ESP32-C3 charts
-if(deviceType === "ESP32C3")
-{
-
-if(!voltageChart)
-{
-
-voltageChart =
-new Chart(
-document.getElementById("voltageChart"),
-{
-type:"line",
-data:{
-labels:voltageLabels,
-datasets:[
-{
-label:"Voltage",
-data:voltageValues,
-borderColor:"green",
-fill:false
-}
-]
-}
-});
-
-
-dvAvgChart =
-new Chart(
-document.getElementById("dvAvgChart"),
-{
-type:"line",
-data:{
-labels:dvAvgLabels,
-datasets:[
-{
-label:"Voltage Stability",
-data:dvAvgValues,
-borderColor:"orange",
-fill:false
-}
-]
-}
-});
+            cpuChart =
+                new Chart(
+                    document.getElementById("cpuChart"),
+                    {
+                        type:"line",
+                        data:{
+                            labels:cpuLabels,
+                            datasets:[
+                                {
+                                    label:"CPU Cycles",
+                                    data:cpuValues,
+                                    borderColor:"blue",
+                                    fill:false
+                                }
+                            ]
+                        }
+                    });
+        }
+        else
+        {
+            batteryChart.update();
+            cpuChart.update();
+        }
+    }
 
 
-dvNormChart =
-new Chart(
-document.getElementById("dvNormChart"),
-{
-type:"line",
-data:{
-labels:dvNormLabels,
-datasets:[
-{
-label:"Voltage Normalized",
-data:dvNormValues,
-borderColor:"red",
-fill:false
-}
-]
-}
-});
 
-}
-else
-{
+    // ======================
+    // ESP32-C3 charts
+    // ======================
+    if(deviceType === "ESP32C3")
+    {
+        if(!voltageChart)
+        {
+            voltageChart =
+                new Chart(
+                    document.getElementById("voltageChart"),
+                    {
+                        type:"line",
+                        data:{
+                            labels:voltageLabels,
+                            datasets:[
+                                {
+                                    label:"Voltage",
+                                    data:voltageValues,
+                                    borderColor:"green",
+                                    fill:false
+                                }
+                            ]
+                        }
+                    });
 
-voltageChart.update();
-dvAvgChart.update();
-dvNormChart.update();
 
-}
+            dvAvgChart =
+                new Chart(
+                    document.getElementById("dvAvgChart"),
+                    {
+                        type:"line",
+                        data:{
+                            labels:dvAvgLabels,
+                            datasets:[
+                                {
+                                    label:"Voltage Stability",
+                                    data:dvAvgValues,
+                                    borderColor:"orange",
+                                    fill:false
+                                }
+                            ]
+                        }
+                    });
 
-}
 
+            dvNormChart =
+                new Chart(
+                    document.getElementById("dvNormChart"),
+                    {
+                        type:"line",
+                        data:{
+                            labels:dvNormLabels,
+                            datasets:[
+                                {
+                                    label:"Voltage Normalized",
+                                    data:dvNormValues,
+                                    borderColor:"red",
+                                    fill:false
+                                }
+                            ]
+                        }
+                    });
+        }
+        else
+        {
+            voltageChart.update();
+            dvAvgChart.update();
+            dvNormChart.update();
+        }
+    }
 }
 
 
-// ===============================
-// HELPER
-// ===============================
+
+// ==========================================================
+// SECTION 9 — HELPER FUNCTION
+// Safely update UI text
+// ==========================================================
 
 function setText(id, value)
 {
+    const el =
+        document.getElementById(id);
 
-const el =
-document.getElementById(id);
-
-if(el)
-el.innerText = value;
-
+    if(el)
+        el.innerText = value;
 }
 
 
-// ===============================
-// CONFIG POPUP
-// ===============================
+
+// ==========================================================
+// SECTION 10 — CONFIGURATION POPUP
+// Allows user to change refresh interval
+// ==========================================================
 
 function openConfig()
 {
-
-document.getElementById("configPopup")
-.style.display="flex";
-
+    document.getElementById("configPopup")
+        .style.display="flex";
 }
-
 
 function closeConfig()
 {
-
-document.getElementById("configPopup")
-.style.display="none";
-
+    document.getElementById("configPopup")
+        .style.display="none";
 }
 
 
 function applyConfig()
 {
+    const sec =
+        document.getElementById("intervalInput").value;
 
-const sec =
-document.getElementById("intervalInput").value;
+    intervalTime =
+        sec * 1000;
 
-intervalTime =
-sec * 1000;
+    document.getElementById("currentInterval")
+        .innerText = sec;
 
-document.getElementById("currentInterval")
-.innerText = sec;
+    closeConfig();
 
-closeConfig();
-
-startSimulation();
-
+    startSimulation();
 }
 
 
-// ===============================
-// RESET
-// ===============================
+
+// ==========================================================
+// SECTION 11 — RESET GRAPH DATA
+// Clears charts and restarts simulation
+// ==========================================================
 
 function resetSimulation()
 {
+    index = 0;
 
-index = 0;
+    batteryLabels=[];
+    batteryValues=[];
 
-batteryLabels=[];
-batteryValues=[];
+    cpuLabels=[];
+    cpuValues=[];
 
-cpuLabels=[];
-cpuValues=[];
+    voltageLabels=[];
+    voltageValues=[];
 
-voltageLabels=[];
-voltageValues=[];
+    dvAvgLabels=[];
+    dvAvgValues=[];
 
-dvAvgLabels=[];
-dvAvgValues=[];
+    dvNormLabels=[];
+    dvNormValues=[];
 
-dvNormLabels=[];
-dvNormValues=[];
-
-updateCharts();
-
+    updateCharts();
 }
 
 
-// ===============================
-// START
-// ===============================
+
+// ==========================================================
+// SECTION 12 — APPLICATION ENTRY POINT
+// Runs when dashboard loads
+// ==========================================================
 
 initUI();
 
