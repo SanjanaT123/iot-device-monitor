@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>IoT Device Health Dashboard</title>
+
+<link rel="stylesheet" href="css/style.css">
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+</head>
+
+<body>
+
+<div class="header">
+<span id="deviceTitle">
+IoT Device Health Dashboard
+</span>
+</div>
+
+
+<div class="container">
+
+
+<div class="top-section">
+
+<div class="device-box">
+
+<img id="deviceImage" src="images/esp32.png">
+
+</div>
+
+
+<div class="param-box">
+
+<h3>Parameters</h3>
+
+<p>Status:
+<span id="statusText" class="online">
+Online
+</span>
+</p>
+
+
+<!-- ESP32 battery -->
+<div id="batterySection">
+
+<p>
+Battery:
+<span id="batteryText">--</span>
+</p>
+
+<div class="progress">
+
+<div id="batteryBar"
+class="progress-fill">
+</div>
+
+</div>
+
+</div>
+
+
+<!-- ESP32 RSSI -->
+<div id="rssiSection">
+
+<p>
+RSSI:
+<span id="rssi">--</span>
+</p>
+
+</div>
+
+
+<!-- ESP32 BLE -->
+<div id="bleSection">
+
+<p>
+BLE Attempts:
+<span id="ble">--</span>
+</p>
+
+</div>
+
+
+<!-- ESP32 CPU -->
+<div id="cpuSection">
+
+<p>
+CPU Cycles:
+<span id="cpu">--</span>
+</p>
+
+</div>
+
+
+<!-- ESP32-C3 Voltage -->
+<div id="voltageSection">
+
+<p>
+Voltage:
+<span id="voltageText">--</span>
+</p>
+
+</div>
+
+
+<!-- ESP32-C3 dvAvg -->
+<div id="dvAvgSection">
+
+<p>
+Voltage Stability:
+<span id="dvAvgText">--</span>
+</p>
+
+</div>
+
+
+<!-- ESP32-C3 dvNorm -->
+<div id="dvNormSection">
+
+<p>
+Voltage Normalized:
+<span id="dvNormText">--</span>
+</p>
+
+</div>
+
+
+</div>
+
+</div>
+
+
+
+
+
+
+<div class="config-bar">
+
+<button class="config-btn"
+onclick="openConfig()">
+
+⚙ Configure
+
+</button>
+
+<span>
+Update Interval:
+<span id="currentInterval">2</span> sec
+</span>
+
+</div>
+
+
+<div class="charts">
+
+
+<!-- ESP32 charts -->
+<div id="esp32Charts">
+
+<div class="chart-box">
+
+<h3>Battery Voltage</h3>
+
+<canvas id="batteryChart"></canvas>
+
+</div>
+
+
+<div class="chart-box">
+
+<h3>CPU Cycles</h3>
+
+<canvas id="cpuChart"></canvas>
+
+</div>
+
+</div>
+
+
+
+<!-- ESP32-C3 charts -->
+<div id="esp32c3Charts">
+
+<div class="chart-box">
+
+<h3>Voltage</h3>
+
+<canvas id="voltageChart"></canvas>
+
+</div>
+
+
+<div class="chart-box">
+
+<h3>Voltage Stability (dvAvg)</h3>
+
+<canvas id="dvAvgChart"></canvas>
+
+</div>
+
+
+<div class="chart-box">
+
+<h3>Voltage Normalized (dvNorm)</h3>
+
+<canvas id="dvNormChart"></canvas>
+
+</div>
+
+</div>
+
+
+</div>
+
+
+
+<div id="configPopup" class="config-popup">
+
+<div class="config-box">
+
+<h3>Dashboard Configuration</h3>
+
+<label>
+Update Interval (seconds)
+</label>
+
+<input type="number"
+id="intervalInput"
+value="5"
+min="1">
+
+
+<br><br>
+
+<button onclick="applyConfig()">
+Apply
+</button>
+
+<button onclick="closeConfig()">
+Cancel
+</button>
+
+<button onclick="resetSimulation()">
+Reset Graph
+</button>
+
+</div>
+
+</div>
+
+
+</div>
+
+
+<script src="js/dashboard.js"></script>
+
+</body>
+
+</html>
