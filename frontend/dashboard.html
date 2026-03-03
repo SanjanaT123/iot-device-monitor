@@ -10,13 +10,11 @@
 
     <!-- ========================================================= -->
     <!-- MAIN STYLESHEET -->
-    <!-- Contains layout, charts styling, device cards, popup UI -->
     <!-- ========================================================= -->
     <link rel="stylesheet" href="css/style.css">
 
     <!-- ========================================================= -->
     <!-- CHART.JS LIBRARY -->
-    <!-- Used to draw dynamic line charts for device metrics -->
     <!-- ========================================================= -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -25,8 +23,7 @@
 <body>
 
     <!-- ========================================================= -->
-    <!-- HEADER SECTION -->
-    <!-- Dynamically updated device title -->
+    <!-- HEADER -->
     <!-- ========================================================= -->
     <div class="header">
         <span id="deviceTitle">
@@ -37,28 +34,22 @@
 
     <!-- ========================================================= -->
     <!-- MAIN CONTAINER -->
-    <!-- Holds device image, parameters, configuration, charts -->
     <!-- ========================================================= -->
     <div class="container">
 
 
         <!-- ===================================================== -->
-        <!-- TOP SECTION -->
-        <!-- Contains device image and live parameter values -->
+        <!-- TOP SECTION (Device Image + Parameters) -->
         <!-- ===================================================== -->
         <div class="top-section">
 
-            <!-- DEVICE IMAGE DISPLAY -->
+            <!-- DEVICE IMAGE -->
             <div class="device-box">
-                <!-- Image is set dynamically from URL parameter -->
                 <img id="deviceImage" src="images/esp32.png">
             </div>
 
 
-            <!-- ================================================= -->
-            <!-- PARAMETER DISPLAY SECTION -->
-            <!-- Values updated dynamically from backend -->
-            <!-- ================================================= -->
+            <!-- PARAMETERS SECTION -->
             <div class="param-box">
 
                 <h3>Parameters</h3>
@@ -73,23 +64,17 @@
 
                 <!-- ================= ESP32 SECTION ================= -->
 
-                <!-- Battery Voltage Display -->
                 <div id="batterySection">
                     <p>
                         Battery:
                         <span id="batteryText">--</span>
                     </p>
 
-                    <!-- Battery Percentage Bar -->
                     <div class="progress">
-                        <div id="batteryBar"
-                            class="progress-fill">
-                        </div>
+                        <div id="batteryBar" class="progress-fill"></div>
                     </div>
                 </div>
 
-
-                <!-- RSSI Display -->
                 <div id="rssiSection">
                     <p>
                         RSSI:
@@ -97,8 +82,6 @@
                     </p>
                 </div>
 
-
-                <!-- BLE Attempts Display -->
                 <div id="bleSection">
                     <p>
                         BLE Attempts:
@@ -106,8 +89,6 @@
                     </p>
                 </div>
 
-
-                <!-- CPU Cycles Display -->
                 <div id="cpuSection">
                     <p>
                         CPU Cycles:
@@ -118,7 +99,6 @@
 
                 <!-- ================= ESP32-C3 SECTION ================= -->
 
-                <!-- Voltage Display -->
                 <div id="voltageSection">
                     <p>
                         Voltage:
@@ -126,8 +106,6 @@
                     </p>
                 </div>
 
-
-                <!-- Voltage Stability (dvAvg) -->
                 <div id="dvAvgSection">
                     <p>
                         Voltage Stability:
@@ -135,8 +113,6 @@
                     </p>
                 </div>
 
-
-                <!-- Voltage Normalized (dvNorm) -->
                 <div id="dvNormSection">
                     <p>
                         Voltage Normalized:
@@ -150,18 +126,15 @@
 
 
         <!-- ===================================================== -->
-        <!-- CONFIGURATION BAR -->
-        <!-- Allows user to open dashboard configuration popup -->
+        <!-- CONFIG BAR -->
         <!-- ===================================================== -->
         <div class="config-bar">
 
-            <!-- Open Configuration Popup -->
             <button class="config-btn"
                 onclick="openConfig()">
                 ⚙ Configure
             </button>
 
-            <!-- Display Current Update Interval -->
             <span>
                 Update Interval:
                 <span id="currentInterval">2</span> sec
@@ -172,22 +145,17 @@
 
         <!-- ===================================================== -->
         <!-- CHART SECTION -->
-        <!-- Displays dynamic line charts for device metrics -->
         <!-- ===================================================== -->
         <div class="charts">
 
-
-            <!-- ================= ESP32 CHARTS ================= -->
-
+            <!-- ESP32 Charts -->
             <div id="esp32Charts">
 
-                <!-- Battery Voltage Chart -->
                 <div class="chart-box">
                     <h3>Battery Voltage</h3>
                     <canvas id="batteryChart"></canvas>
                 </div>
 
-                <!-- CPU Cycles Chart -->
                 <div class="chart-box">
                     <h3>CPU Cycles</h3>
                     <canvas id="cpuChart"></canvas>
@@ -196,24 +164,19 @@
             </div>
 
 
-
-            <!-- ================= ESP32-C3 CHARTS ================= -->
-
+            <!-- ESP32-C3 Charts -->
             <div id="esp32c3Charts">
 
-                <!-- Voltage Chart -->
                 <div class="chart-box">
                     <h3>Voltage</h3>
                     <canvas id="voltageChart"></canvas>
                 </div>
 
-                <!-- Voltage Stability Chart -->
                 <div class="chart-box">
                     <h3>Voltage Stability (dvAvg)</h3>
                     <canvas id="dvAvgChart"></canvas>
                 </div>
 
-                <!-- Voltage Normalized Chart -->
                 <div class="chart-box">
                     <h3>Voltage Normalized (dvNorm)</h3>
                     <canvas id="dvNormChart"></canvas>
@@ -227,7 +190,6 @@
 
         <!-- ===================================================== -->
         <!-- CONFIGURATION POPUP -->
-        <!-- Used to modify dashboard behavior dynamically -->
         <!-- ===================================================== -->
         <div id="configPopup" class="config-popup">
 
@@ -235,7 +197,7 @@
 
                 <h3>Dashboard Configuration</h3>
 
-                <!-- Update Interval Input -->
+                <!-- Update Interval -->
                 <label>
                     Update Interval (seconds)
                 </label>
@@ -247,17 +209,23 @@
 
                 <br><br>
 
-                <!-- Apply Changes -->
+                <!-- LIVE MODE TOGGLE -->
+                <label>
+                    <input type="checkbox" id="liveModeToggle">
+                    Enable Live Mode (Latest Data)
+                </label>
+
+                <br><br>
+
+                <!-- Buttons -->
                 <button onclick="applyConfig()">
                     Apply
                 </button>
 
-                <!-- Close Popup -->
                 <button onclick="closeConfig()">
                     Cancel
                 </button>
 
-                <!-- Reset Graph Data -->
                 <button onclick="resetSimulation()">
                     Reset Graph
                 </button>
@@ -270,8 +238,7 @@
 
 
     <!-- ========================================================= -->
-    <!-- MAIN DASHBOARD SCRIPT -->
-    <!-- Handles API calls, chart updates, live mode, etc. -->
+    <!-- DASHBOARD SCRIPT -->
     <!-- ========================================================= -->
     <script src="js/dashboard.js"></script>
 
