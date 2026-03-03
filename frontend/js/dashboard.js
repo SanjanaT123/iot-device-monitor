@@ -31,6 +31,8 @@ const deviceId = params.get("deviceId");
 // Device image filename
 const imageName = params.get("image");
 
+let liveMode = false;
+
 
 // Detect device type automatically based on ID naming
 // This allows automatic support for future devices
@@ -550,10 +552,24 @@ function applyConfig()
 
     document.getElementById("currentInterval")
         .innerText = sec;
+		
+		
+	liveMode = document.getElementById("liveModeToggle").checked;
+
+		if(liveMode)
+		{
+		    startLiveMode();
+		}
+		else
+		{
+		    startSimulation();
+		}
 
     closeConfig();
 
     startSimulation();
+	
+	
 }
 
 
@@ -584,7 +600,24 @@ function resetSimulation()
 
     updateCharts();
 }
+function startLiveMode()
+{
+    clearInterval(timer);
 
+    timer = setInterval(async () =>
+    {
+        const res = await fetch(
+            `https://iot-device-monitor.onrender.com/api/device-logs/device/${deviceId}/latest`
+        );
+
+        const row = await res.json();
+
+        if(!row) return;
+
+        updateLiveDashboard(row);
+
+    }, intervalTime);
+}
 
 
 // ==========================================================
